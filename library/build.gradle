@@ -39,7 +39,7 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'androidx.annotation:annotation:1.9.1'
+    implementation 'androidx.annotation:annotation:1.10.0'
     implementation 'org.mp4parser:isoparser:1.9.56'
     implementation 'org.mp4parser:muxer:1.9.56'
     implementation 'org.mp4parser:streaming:1.9.56'
