@@ -37,7 +37,13 @@ public class MainViewModel extends AndroidViewModel {
     private static final String TAG = "LoadUriViewModel";
 
     private final SavedStateHandle savedStateHandle;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newFixedThreadPool(
+            2,
+            r -> {
+                Thread thread = new Thread(r, "video-load-worker");
+                thread.setPriority(Thread.NORM_PRIORITY - 1);
+                return thread;
+            });
     private final MutableLiveData<LoadUriResult> loadUriResultLiveData = new MutableLiveData<>();
     private Future<?> loadUriRunnableFuture;
 

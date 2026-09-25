@@ -29,7 +29,13 @@ public class Converter {
     private static volatile Converter INSTANCE;
 
     private final Application application;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newFixedThreadPool(
+            2,
+            r -> {
+                Thread thread = new Thread(r, "video-converter-worker");
+                thread.setPriority(Thread.NORM_PRIORITY - 1);
+                return thread;
+            });
     private Future<?> convertRunnableFuture;
 
     public final MutableLiveData<Progress> progress = new MutableLiveData<>();
@@ -53,7 +59,7 @@ public class Converter {
     @MainThread
     public void convert(@NonNull File input, @NonNull String outputFileName, long timeFrom, long timeTo, @NonNull ConversionParameters conversionParameters) {
         result.setValue(null);
-        progress.postValue(new Progress(0, 0));
+        progress.postValue(new Progress(0, 0, -1, "preparing"));
         convertRunnableFuture = executor.submit(() -> {
             try {
                 final File output = new File(application.getExternalFilesDir(null), outputFileName);
@@ -73,8 +79,8 @@ public class Converter {
                 converter.setAudioBitrate(conversionParameters.mAudioBitrate);
 
                 final long startTime = System.currentTimeMillis();
-                converter.setListener(percent -> {
-                    progress.postValue(new Progress(percent, System.currentTimeMillis() - startTime));
+                converter.setListener((percent, elapsedMillis, estimatedRemainingMillis, stage) -> {
+                    progress.postValue(new Progress(percent, elapsedMillis, estimatedRemainingMillis, stage));
                     return convertRunnableFuture.isCancelled();
                 });
 
@@ -122,10 +128,14 @@ public class Converter {
     public static class Progress {
         final int percent;
         final long elapsedTime;
+        final long estimatedRemainingTime;
+        final String stage;
 
-        public Progress(int percent, long elapsedTime) {
+        public Progress(int percent, long elapsedTime, long estimatedRemainingTime, String stage) {
             this.percent = percent;
             this.elapsedTime = elapsedTime;
+            this.estimatedRemainingTime = estimatedRemainingTime;
+            this.stage = stage;
         }
     }
 

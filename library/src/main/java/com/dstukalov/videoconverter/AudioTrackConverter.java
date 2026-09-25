@@ -27,6 +27,7 @@ class AudioTrackConverter {
     private final long mTimeFrom;
     private final long mTimeTo;
     private final int mAudioBitrate;
+    private final MediaConverter.AudioTrackMetadata mTrackMetadata;
 
     final long mInputDuration;
 
@@ -70,7 +71,22 @@ class AudioTrackConverter {
             audioExtractor.release();
             return null;
         }
-        return new AudioTrackConverter(audioExtractor, audioInputTrack, timeFrom, timeTo, audioBitrate);
+        return new AudioTrackConverter(audioExtractor, audioInputTrack, timeFrom, timeTo, audioBitrate, null);
+    }
+
+    static @Nullable AudioTrackConverter create(
+            final @NonNull MediaExtractor audioExtractor,
+            final int audioInputTrack,
+            final long timeFrom,
+            final long timeTo,
+            final int audioBitrate,
+            @Nullable final MediaConverter.AudioTrackMetadata metadata) throws IOException {
+
+        if (audioInputTrack < 0 || audioInputTrack >= audioExtractor.getTrackCount()) {
+            audioExtractor.release();
+            return null;
+        }
+        return new AudioTrackConverter(audioExtractor, audioInputTrack, timeFrom, timeTo, audioBitrate, metadata);
     }
 
     private AudioTrackConverter(
@@ -78,12 +94,14 @@ class AudioTrackConverter {
             final int audioInputTrack,
             long timeFrom,
             long timeTo,
-            int audioBitrate) throws IOException {
+            int audioBitrate,
+            @Nullable final MediaConverter.AudioTrackMetadata metadata) throws IOException {
 
         mTimeFrom = timeFrom;
         mTimeTo = timeTo;
         mAudioExtractor = audioExtractor;
         mAudioBitrate = audioBitrate;
+        mTrackMetadata = metadata != null ? metadata : new MediaConverter.AudioTrackMetadata(audioInputTrack, audioInputTrack + 1, null, null, audioBitrate);
 
         final MediaCodecInfo audioCodecInfo = MediaConverter.selectCodec(OUTPUT_AUDIO_MIME_TYPE);
         if (audioCodecInfo == null) {
@@ -101,6 +119,7 @@ class AudioTrackConverter {
                         OUTPUT_AUDIO_MIME_TYPE,
                         inputAudioFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE),
                         inputAudioFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT));
+        applyTrackMetadata(outputAudioFormat, mTrackMetadata);
         outputAudioFormat.setInteger(MediaFormat.KEY_BIT_RATE, audioBitrate);
         outputAudioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, OUTPUT_AUDIO_AAC_PROFILE);
         outputAudioFormat.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 16384);
@@ -138,6 +157,15 @@ class AudioTrackConverter {
             }
             if (!mEncoderOutputAudioFormat.containsKey(MediaFormat.KEY_AAC_PROFILE)) {
                 mEncoderOutputAudioFormat.setInteger(MediaFormat.KEY_AAC_PROFILE, OUTPUT_AUDIO_AAC_PROFILE);
+            }
+            if (mTrackMetadata.getLanguage() != null && !mEncoderOutputAudioFormat.containsKey(MediaFormat.KEY_LANGUAGE)) {
+                mEncoderOutputAudioFormat.setString(MediaFormat.KEY_LANGUAGE, mTrackMetadata.getLanguage());
+            }
+            if (mTrackMetadata.getTitle() != null && !mEncoderOutputAudioFormat.containsKey(MediaFormat.KEY_TITLE)) {
+                mEncoderOutputAudioFormat.setString(MediaFormat.KEY_TITLE, mTrackMetadata.getTitle());
+            }
+            if (mTrackMetadata.getTrackNumber() > 0 && !mEncoderOutputAudioFormat.containsKey(MediaFormat.KEY_TRACK_ID)) {
+                mEncoderOutputAudioFormat.setInteger(MediaFormat.KEY_TRACK_ID, mTrackMetadata.getTrackNumber());
             }
             mOutputAudioTrack = muxer.addTrack(mEncoderOutputAudioFormat);
         }
@@ -385,6 +413,19 @@ class AudioTrackConverter {
 
     void verifyEndState() {
         Preconditions.checkState("no frame should be pending", -1 == mPendingAudioDecoderOutputBufferIndex);
+    }
+
+    private void applyTrackMetadata(final @NonNull MediaFormat format,
+                                   final @NonNull MediaConverter.AudioTrackMetadata metadata) {
+        if (metadata.getLanguage() != null) {
+            format.setString(MediaFormat.KEY_LANGUAGE, metadata.getLanguage());
+        }
+        if (metadata.getTitle() != null) {
+            format.setString(MediaFormat.KEY_TITLE, metadata.getTitle());
+        }
+        if (metadata.getTrackNumber() > 0) {
+            format.setInteger(MediaFormat.KEY_TRACK_ID, metadata.getTrackNumber());
+        }
     }
 
     private static @NonNull MediaCodec createAudioDecoder(final @NonNull MediaFormat inputFormat) throws IOException {

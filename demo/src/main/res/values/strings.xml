@@ -22,6 +22,7 @@
     <string name="video_size_output">~%s</string>
     <string name="conversion_failed">Failed to convert</string>
     <string name="seconds_elapsed">%d sec. elapsed</string>
+    <string name="seconds_elapsed_eta">%1$d sec. elapsed, %2$s, %3$s remaining</string>
     <string name="seconds_elapsed_f">%.02f sec. elapsed</string>
     <string name="resolution_240p">240p</string>
     <string name="resolution_360p">360p</string>

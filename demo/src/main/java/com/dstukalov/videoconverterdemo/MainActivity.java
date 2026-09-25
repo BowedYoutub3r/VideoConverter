@@ -194,7 +194,15 @@ public class MainActivity extends AppCompatActivity implements OutputSettingsDia
             if (progress != null) {
                 mConversionProgressBar.setIndeterminate(progress.percent >= 100);
                 mConversionProgressBar.setProgress(progress.percent);
-                mElapsedTimeView.setText(getString(R.string.seconds_elapsed, progress.elapsedTime / 1000L));
+                if (progress.estimatedRemainingTime >= 0) {
+                    mElapsedTimeView.setText(getString(
+                            R.string.seconds_elapsed_eta,
+                            progress.elapsedTime / 1000L,
+                            progress.stage,
+                            DateUtils.formatElapsedTime(progress.estimatedRemainingTime / 1000L)));
+                } else {
+                    mElapsedTimeView.setText(getString(R.string.seconds_elapsed, progress.elapsedTime / 1000L));
+                }
             }
             updateControls();
         });
